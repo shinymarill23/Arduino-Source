@@ -93,7 +93,7 @@ std::unique_ptr<StatsTracker> TeraSelfFarmer_Descriptor::make_stats() const{
 
 TeraFarmerOpponentFilter::TeraFarmerOpponentFilter()
     : GroupOption("Opponent Filter", LockWhileRunning::UNLOCKED)
-    , SKIP_HERBA(
+    , SKIP_NON_HERBA(
         "<b>Skip Non-Herba Raids:</b><br>"
         "Skip raids that don't have the possibility to reward all types of Herba Mystica. This won't stop the program when Herba Mystica is found, it will only increase your chances to find it.",
         LockWhileRunning::UNLOCKED,
@@ -110,7 +110,7 @@ TeraFarmerOpponentFilter::TeraFarmerOpponentFilter()
         4, 1, 7
     )
 {
-    PA_ADD_OPTION(SKIP_HERBA);
+    PA_ADD_OPTION(SKIP_NON_HERBA);
     PA_ADD_OPTION(MIN_STARS);
     PA_ADD_OPTION(MAX_STARS);
 }
@@ -127,7 +127,8 @@ bool TeraFarmerOpponentFilter::should_battle(size_t stars, const std::string& po
         "blissey", "vaporeon", "amoonguss", "farigiraf", "cetitan", "dondozo"
     };
 
-    if (SKIP_HERBA){
+    // Check for non-herba raids
+    if (SKIP_NON_HERBA){
         if (fivestar.find(pokemon) != fivestar.end()){
             return true;
         }
@@ -285,7 +286,7 @@ void TeraSelfFarmer::program(SingleSwitchProgramEnvironment& env, BotBaseContext
         throw UserSetupError(env.console, "Error in the settings, \"Min Stars\" is bigger than \"Max Stars\".");
     }
     
-    if (FILTER.SKIP_HERBA && FILTER.MAX_STARS < 5){
+    if (FILTER.SKIP_NON_HERBA && FILTER.MAX_STARS < 5){
         throw UserSetupError(env.console, "Error in the settings, Skip Non-Herba Raids is checked but Max Stars is less than 5.");
     }
 

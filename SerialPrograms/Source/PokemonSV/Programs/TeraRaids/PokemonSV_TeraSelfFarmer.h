@@ -9,6 +9,7 @@
 
 #include "Common/Cpp/Options/BooleanCheckBoxOption.h"
 #include "Common/Cpp/Options/SimpleIntegerOption.h"
+#include "Common/Cpp/Options/TextEditOption.h"
 //#include "Common/Cpp/Options/EnumDropdownOption.h"
 #include "CommonFramework/Notifications/EventNotificationsTable.h"
 #include "CommonFramework/Options/LanguageOCROption.h"
@@ -42,7 +43,7 @@ public:
 
     bool should_battle(size_t stars, const std::string& pokemon) const;
 
-    BooleanCheckBoxOption SKIP_HERBA;
+    BooleanCheckBoxOption SKIP_NON_HERBA;
     SimpleIntegerOption<uint8_t> MIN_STARS;
     SimpleIntegerOption<uint8_t> MAX_STARS;
 
