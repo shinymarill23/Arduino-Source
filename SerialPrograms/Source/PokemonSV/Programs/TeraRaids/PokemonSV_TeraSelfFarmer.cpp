@@ -108,15 +108,28 @@ TeraFarmerOpponentFilter::TeraFarmerOpponentFilter()
         "<b>Max Stars:</b><br>Skip raids with more than this many stars to save time since you're likely to lose.",
         LockWhileRunning::UNLOCKED,
         4, 1, 7
+    ), SEARCH_SPECIES(
+        "<b>Search Species:</b><br>Search for raids having one of these Pokemon. <i>Use a comma to separate multiple entries.</i>",
+          LockWhileRunning::LOCKED,
+          "",
+          ""
+    ), SKIP_SPECIES(
+        "<b>Skip Species:</b><br>Skip raids having one of these Pokemon. <i>Use a comma to separate multiple entries.</i>",
+        LockWhileRunning::LOCKED,
+        "",
+        ""
     )
 {
     PA_ADD_OPTION(SKIP_NON_HERBA);
     PA_ADD_OPTION(MIN_STARS);
     PA_ADD_OPTION(MAX_STARS);
+    PA_ADD_OPTION(SEARCH_SPECIES);
+    PA_ADD_OPTION(SKIP_SPECIES);
 }
 
-bool TeraFarmerOpponentFilter::should_battle(size_t stars, const std::string& pokemon) const{
+bool TeraFarmerOpponentFilter::should_battle(size_t stars, const std::string& pokemon, Logger &logger) const{
     if (stars < MIN_STARS || stars > MAX_STARS){
+        logger.log("RAID REJECTED: Star rating of "+ std::to_string(stars) + " is outside the allowed range", COLOR_ORANGE);
         return false;
     }
 
@@ -135,10 +148,75 @@ bool TeraFarmerOpponentFilter::should_battle(size_t stars, const std::string& po
         if (sixstar.find(pokemon) != sixstar.end()){
             return true;
         }
+        logger.log("RAID REJECTED: \'" + pokemon + "\' raids do not drop herba mystica.", COLOR_ORANGE);
         return false;
     }
 
+    // Check if the raid is for a pokemon we want to skip
+    if (m_skip_species_set.size() > 0 &&
+        m_skip_species_set.find(pokemon) != m_search_species_set.end()){
+        logger.log("RAID REJECTED: \'" + pokemon + "\' is in the list of species to skip.", COLOR_ORANGE);
+        return false;
+    }
+
+    // Check if the raid isn't for a pokemon we are searching for
+    if (m_search_species_set.size() > 0 &&
+        m_search_species_set.find(pokemon) == m_search_species_set.end()){
+        logger.log("RAID REJECTED: \'" + pokemon + "\' is not in the list of species to search for.", COLOR_ORANGE);
+        return false;
+    }
+
+    // default: accept raid
     return true;
+}
+
+std::string TeraFarmerOpponentFilter::init_species_filter()
+{
+    TeraFarmerOpponentFilter::parse_multival_textoption(SEARCH_SPECIES, m_search_species_set);
+    TeraFarmerOpponentFilter::parse_multival_textoption(SKIP_SPECIES, m_skip_species_set);
+
+    for (std::string species : m_search_species_set)
+    {
+        // check if the same species is both in the search and skip setting
+        // if so, return false to indicate invalid configuration
+        if (m_skip_species_set.find(species) != m_skip_species_set.end())
+        {
+            return "'"+species+"' appears in both the 'Search Species' and 'Skip Species' setting value";
+        }
+    }
+
+    // empty string signals successful init
+    return "";
+}
+
+void TeraFarmerOpponentFilter::parse_multival_textoption(TextEditOption &txtOption, std::set<std::string> &stringSet)
+{
+    std::string optionText = txtOption;
+    std::stringstream ssLines(optionText);
+    std::string line;
+    std::string ws = " \t\n\r\f\v";
+
+    // start by clearing the existing set items
+    stringSet.clear();
+
+    // parse line by line
+    while (std::getline(ssLines, line))
+    {
+        std::string token;
+        std::stringstream ssTokens(line);
+
+        // parse tokens on each line
+        while(std::getline(ssTokens, token, ','))
+        {
+            //trim whitespace
+            size_t first = token.find_first_not_of(ws);
+            size_t last = token.find_last_not_of(ws);
+            if (first != std::string::npos)
+            {
+                stringSet.insert(token.substr(first, last - first + 1));
+            }
+        }
+    }
 }
 
 TeraFarmerCatchOnWin::TeraFarmerCatchOnWin(TeraSelfFarmer& program)
@@ -292,6 +370,13 @@ void TeraSelfFarmer::program(SingleSwitchProgramEnvironment& env, BotBaseContext
 
     m_number_caught = 0;
 
+    // Build raid species filter
+    std::string init_species_filter_result = FILTER.init_species_filter();
+    if (init_species_filter_result.empty() == false)
+    {
+        throw UserSetupError(env.console, "Error in the settings, " + init_species_filter_result);
+    }
+
     //  Connect the controller.
     pbf_press_button(context, BUTTON_LCLICK, 10, 10);
 
@@ -359,7 +444,7 @@ void TeraSelfFarmer::program(SingleSwitchProgramEnvironment& env, BotBaseContext
             env.log(log);
         }
 
-        if (!FILTER.should_battle(stars, best_silhouette)) {
+        if (!FILTER.should_battle(stars, best_silhouette, env.logger())) {
             env.log("Skipping raid...", COLOR_ORANGE);
             stats.m_skipped++;
             close_raid(env.program_info(), env.console, context);

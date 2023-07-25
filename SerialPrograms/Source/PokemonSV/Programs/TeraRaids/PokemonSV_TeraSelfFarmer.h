@@ -41,13 +41,19 @@ class TeraFarmerOpponentFilter : public GroupOption{
 public:
     TeraFarmerOpponentFilter();
 
-    bool should_battle(size_t stars, const std::string& pokemon) const;
-
+    bool should_battle(size_t stars, const std::string& pokemon, Logger& logger) const;
+    std::string init_species_filter();
     BooleanCheckBoxOption SKIP_NON_HERBA;
     SimpleIntegerOption<uint8_t> MIN_STARS;
     SimpleIntegerOption<uint8_t> MAX_STARS;
-
+    TextEditOption SEARCH_SPECIES;
+    TextEditOption SKIP_SPECIES;
+private:
+    std::set<std::string> m_search_species_set;
+    std::set<std::string> m_skip_species_set;
+    void parse_multival_textoption(TextEditOption &txtOption, std::set<std::string>& stringSet);
 };
+
 class TeraFarmerCatchOnWin : public GroupOption{
 public:
     TeraFarmerCatchOnWin(TeraSelfFarmer& program);
