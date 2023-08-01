@@ -118,6 +118,16 @@ TeraFarmerOpponentFilter::TeraFarmerOpponentFilter()
         LockWhileRunning::LOCKED,
         "",
         ""
+    ), SEARCH_TERATYPES(
+        "<b>Search TeraType:</b><br>Search for raids having one of these TeraTypes. <i>Use a comma to separate multiple entries.</i>",
+          LockWhileRunning::LOCKED,
+          "",
+          ""
+    ), SKIP_TERATYPES(
+        "<b>Skip TeraType:</b><br>Skip raids having one of these TeraTypes. <i>Use a comma to separate multiple entries.</i>",
+        LockWhileRunning::LOCKED,
+        "",
+        ""
     )
 {
     PA_ADD_OPTION(SKIP_NON_HERBA);
@@ -125,9 +135,11 @@ TeraFarmerOpponentFilter::TeraFarmerOpponentFilter()
     PA_ADD_OPTION(MAX_STARS);
     PA_ADD_OPTION(SEARCH_SPECIES);
     PA_ADD_OPTION(SKIP_SPECIES);
+    PA_ADD_OPTION(SEARCH_TERATYPES);
+    PA_ADD_OPTION(SKIP_TERATYPES);
 }
 
-bool TeraFarmerOpponentFilter::should_battle(size_t stars, const std::string& pokemon, Logger &logger) const{
+bool TeraFarmerOpponentFilter::should_battle(size_t stars, const std::string& pokemon, const std::string& teratype, Logger &logger) const{
     if (stars < MIN_STARS || stars > MAX_STARS){
         logger.log("RAID REJECTED: Star rating of "+ std::to_string(stars) + " is outside the allowed range", COLOR_ORANGE);
         return false;
@@ -166,6 +178,19 @@ bool TeraFarmerOpponentFilter::should_battle(size_t stars, const std::string& po
         return false;
     }
 
+    // Check if the raid is for a teratype we want to skip
+    if (m_skip_teratypes_set.size() > 0 &&
+        m_skip_teratypes_set.find(teratype) != m_skip_teratypes_set.end()){
+        logger.log("RAID REJECTED: \'" + teratype + "\' is in the list of teratypes to skip.", COLOR_ORANGE);
+        return false;
+    }
+
+    // Check if the raid isn't for a teratype we are searching for
+    if (m_search_teratypes_set.size() > 0 &&
+        m_search_teratypes_set.find(teratype) == m_search_teratypes_set.end()){
+        logger.log("RAID REJECTED: \'" + teratype + "\' is not in the list of teratypes to search for.", COLOR_ORANGE);
+        return false;
+    }
     // default: accept raid
     return true;
 }
@@ -182,6 +207,25 @@ std::string TeraFarmerOpponentFilter::init_species_filter()
         if (m_skip_species_set.find(species) != m_skip_species_set.end())
         {
             return "'"+species+"' appears in both the 'Search Species' and 'Skip Species' setting value";
+        }
+    }
+
+    // empty string signals successful init
+    return "";
+}
+
+std::string TeraFarmerOpponentFilter::init_teratype_filter()
+{
+    TeraFarmerOpponentFilter::parse_multival_textoption(SEARCH_TERATYPES, m_search_teratypes_set);
+    TeraFarmerOpponentFilter::parse_multival_textoption(SKIP_TERATYPES, m_skip_teratypes_set);
+
+    for (std::string teratype : m_search_teratypes_set)
+    {
+        // check if the same teratype is both in the search and skip setting
+        // if so, return false to indicate invalid configuration
+        if (m_skip_teratypes_set.find(teratype) != m_skip_teratypes_set.end())
+        {
+            return "'"+teratype+"' appears in both the 'Search TeraTypes' and 'Skip TeraTypes' setting value";
         }
     }
 
@@ -377,6 +421,13 @@ void TeraSelfFarmer::program(SingleSwitchProgramEnvironment& env, BotBaseContext
         throw UserSetupError(env.console, "Error in the settings, " + init_species_filter_result);
     }
 
+    // Build raid teratype filter
+    std::string init_teratype_filter_result = FILTER.init_teratype_filter();
+    if (init_teratype_filter_result.empty() == false)
+    {
+        throw UserSetupError(env.console, "Error in the settings, " + init_teratype_filter_result);
+    }
+
     //  Connect the controller.
     pbf_press_button(context, BUTTON_LCLICK, 10, 10);
 
@@ -444,7 +495,7 @@ void TeraSelfFarmer::program(SingleSwitchProgramEnvironment& env, BotBaseContext
             env.log(log);
         }
 
-        if (!FILTER.should_battle(stars, best_silhouette, env.logger())) {
+        if (!FILTER.should_battle(stars, best_silhouette, best_type, env.logger())) {
             env.log("Skipping raid...", COLOR_ORANGE);
             stats.m_skipped++;
             close_raid(env.program_info(), env.console, context);

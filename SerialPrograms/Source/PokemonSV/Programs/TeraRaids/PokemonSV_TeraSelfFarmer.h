@@ -41,16 +41,21 @@ class TeraFarmerOpponentFilter : public GroupOption{
 public:
     TeraFarmerOpponentFilter();
 
-    bool should_battle(size_t stars, const std::string& pokemon, Logger& logger) const;
+    bool should_battle(size_t stars, const std::string& pokemon, const std::string& teratype, Logger& logger) const;
     std::string init_species_filter();
+    std::string init_teratype_filter();
     BooleanCheckBoxOption SKIP_NON_HERBA;
     SimpleIntegerOption<uint8_t> MIN_STARS;
     SimpleIntegerOption<uint8_t> MAX_STARS;
     TextEditOption SEARCH_SPECIES;
     TextEditOption SKIP_SPECIES;
+    TextEditOption SEARCH_TERATYPES;
+    TextEditOption SKIP_TERATYPES;
 private:
     std::set<std::string> m_search_species_set;
     std::set<std::string> m_skip_species_set;
+    std::set<std::string> m_search_teratypes_set;
+    std::set<std::string> m_skip_teratypes_set;
     void parse_multival_textoption(TextEditOption &txtOption, std::set<std::string>& stringSet);
 };
 
