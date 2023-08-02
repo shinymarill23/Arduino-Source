@@ -200,7 +200,7 @@ std::string TeraFarmerOpponentFilter::init_species_filter()
     TeraFarmerOpponentFilter::parse_multival_textoption(SEARCH_SPECIES, m_search_species_set);
     TeraFarmerOpponentFilter::parse_multival_textoption(SKIP_SPECIES, m_skip_species_set);
 
-    for (std::string species : m_search_species_set)
+    for (const std::string &species : m_search_species_set)
     {
         // check if the same species is both in the search and skip setting
         // if so, return false to indicate invalid configuration
@@ -219,7 +219,7 @@ std::string TeraFarmerOpponentFilter::init_teratype_filter()
     TeraFarmerOpponentFilter::parse_multival_textoption(SEARCH_TERATYPES, m_search_teratypes_set);
     TeraFarmerOpponentFilter::parse_multival_textoption(SKIP_TERATYPES, m_skip_teratypes_set);
 
-    for (std::string teratype : m_search_teratypes_set)
+    for (const std::string &teratype : m_search_teratypes_set)
     {
         // check if the same teratype is both in the search and skip setting
         // if so, return false to indicate invalid configuration
